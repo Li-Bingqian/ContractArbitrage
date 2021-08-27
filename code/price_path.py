@@ -12,6 +12,10 @@ from ps_tool_kit.date_N_time import gen_trade_date
 import os, time, random
 from datetime import timedelta
 
+"""
+All time used in this file is in the unit of second.
+e.g. window_width, update_interval
+"""
 
 # Get daily data
 def get_ob_data(exchange, symbol, days_ls, is_maker):
@@ -52,6 +56,10 @@ def get_ob_data(exchange, symbol, days_ls, is_maker):
 
 
 def get_2ex_spread(maker_ex, taker_ex, symbol, days):
+    """
+    combine maker and taker exchanges' data in days
+    calculate mid price spread
+    """
     df1 = get_ob_data(maker_ex, symbol, days, is_maker=True)
     df2 = get_ob_data(taker_ex, symbol, days, is_maker=False)
     df = pd.merge(df1, df2, left_index=True, right_index=True)
@@ -62,6 +70,10 @@ def get_2ex_spread(maker_ex, taker_ex, symbol, days):
 
 
 def add_rolling_window(df, window_width, update_interval_s):
+    """
+    calculate mean and std of last windows
+    append these info to the raw data
+    """
     df['window'] = df.index.floor(str(update_interval_s) + 'S')
     win_statistics = df['mid_spread'].shift().rolling(str(window_width) + "s", min_periods=1).agg({np.mean, np.std})
     # win_statistics = win_statistics[win_statistics.index.isin(df.window.unique()[int(window_width/update_interval_s):])]
@@ -72,6 +84,10 @@ def add_rolling_window(df, window_width, update_interval_s):
 
 
 def get_new_spread(df, k):
+    """
+    turn the mid price spread to the real spread while calculating profit
+    using mean and std info
+    """
     df['spread'] = df['mid_spread']
     upper = df['mean'] + k * df['std']
     lower = df['mean'] - k * df['std']
@@ -88,6 +104,17 @@ def get_new_spread(df, k):
 
 
 def test(df_all, k, window_width, update_interval_s, max_position, i):
+    """
+    simulate trading process
+    :param df_all: the raw data with window interval info
+    :param k: k * std +/- u
+    :param window_width: from which we get mean and std
+    :param update_interval_s: window updating frequency
+    :param max_position: maximum position
+    :param i: showing the procedure
+    :return:df with trading info like position increment
+    """
+
     print('Run task %s (%s)...' % (i, os.getpid()))
     start = time.time()
     df_group = add_rolling_window(df_all, window_width, update_interval_s)
